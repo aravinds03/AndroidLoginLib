@@ -1,4 +1,4 @@
-package com.aravinds86.androidloginlib.signin;
+package com.androidloginlib.signin;
 //
 // Copyright 2016 Amazon.com, Inc. or its affiliates (Amazon). All Rights Reserved.
 //
@@ -14,7 +14,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-
+import com.androidloginlib.utils.Utils;
 import com.facebook.AccessToken;
 import com.facebook.AccessTokenTracker;
 import com.facebook.CallbackManager;
@@ -203,7 +203,7 @@ public class FacebookSignInProvider implements SignInProvider {
         };
 
         try {
-            ThreadUtils.runOnUiThread(new Runnable() {
+            Utils.runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
                     // Refreshes access token in the background and wakes up the AccessTokenTracker

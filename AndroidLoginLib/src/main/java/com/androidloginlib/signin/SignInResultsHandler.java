@@ -1,4 +1,4 @@
-package com.aravinds86.androidloginlib.signin;
+package com.androidloginlib.signin;
 
 
 /**

@@ -1,4 +1,4 @@
-package com.aravinds86.androidloginlib;
+package com.androidloginlib;
 
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;
@@ -21,6 +21,6 @@ public class ExampleInstrumentedTest {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getTargetContext();
 
-        assertEquals("com.aravinds86.androidloginlib.test", appContext.getPackageName());
+        assertEquals("com.androidloginlib.test", appContext.getPackageName());
     }
 }

@@ -1,4 +1,4 @@
-package com.aravinds86.androidloginlib.signin;
+package com.androidloginlib.signin;
 //
 // Copyright 2016 Amazon.com, Inc. or its affiliates (Amazon). All Rights Reserved.
 //
@@ -7,8 +7,6 @@ package com.aravinds86.androidloginlib.signin;
 //
 // Source code generated from template: aws-my-sample-app-android v0.7
 //
-
-import android.accounts.Account;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -16,18 +14,16 @@ import android.content.IntentSender;
 import android.content.pm.ApplicationInfo;
 import android.util.Log;
 import android.view.View;
-import com.google.android.gms.auth.GoogleAuthException;
-import com.google.android.gms.auth.GoogleAuthUtil;
 import com.google.android.gms.auth.api.Auth;
 
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.auth.api.signin.GoogleSignInResult;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
-import com.google.android.gms.common.Scopes;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.Scope;
-import com.google.android.gms.plus.Plus;
-import com.google.android.gms.plus.model.people.Person;
+import com.google.android.gms.common.api.OptionalPendingResult;
+import com.google.android.gms.common.api.ResultCallback;
 
 import java.io.IOException;
 
@@ -38,8 +34,6 @@ public class GoogleSignInProvider implements SignInProvider {
     /** Log tag. */
     private static final String LOG_TAG = GoogleSignInProvider.class.getSimpleName();
     // Google Client ID for Web application
-    public static final String GOOGLE_CLIENT_ID =
-            "816586055955-qr7dmh0q6i1s48lcbi47o2rubncv4uup.apps.googleusercontent.com";
 
     /** The Cognito login key for Google+ to be used in the Cognito login Map. */
     public static final String COGNITO_LOGIN_KEY_GOOGLE = "accounts.google.com";
@@ -88,13 +82,11 @@ public class GoogleSignInProvider implements SignInProvider {
         Log.d(LOG_TAG, "Initializing Google SDK...");
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestEmail()
-                .requestIdToken(GOOGLE_CLIENT_ID)
                 .build();
 
         // Build GoogleApiClient with access to basic profile
         mGoogleApiClient = new GoogleApiClient.Builder(context)
             .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
-            .addScope(new Scope(Scopes.PROFILE))
             .build();
         mGoogleApiClient.connect();
     }
@@ -108,14 +100,14 @@ public class GoogleSignInProvider implements SignInProvider {
     /** {@inheritDoc} */
     @Override
     public boolean isUserSignedIn() {
-        final ConnectionResult result = mGoogleApiClient.blockingConnect();
-        if (result.isSuccess()) {
-            try {
-                authToken = getGoogleAuthToken();
-                return true;
-            } catch (Exception e) {
-                Log.w(LOG_TAG, "Failed to update Google token", e);
-            }
+        OptionalPendingResult<GoogleSignInResult> opr = Auth.GoogleSignInApi.silentSignIn(mGoogleApiClient);
+        if (opr.isDone()) {
+            // If the user's cached credentials are valid, the OptionalPendingResult will be "done"
+            // and the GoogleSignInResult will be available instantly.
+            Log.d(LOG_TAG, "Got cached sign-in");
+            GoogleSignInResult result = opr.get();
+            handleSignInResult(result);
+            return true;
         }
         return false;
     }
@@ -135,12 +127,13 @@ public class GoogleSignInProvider implements SignInProvider {
     @Override
     public String refreshToken() {
         Log.d(LOG_TAG, "Google provider refreshing token...");
-
-        try {
-            authToken = getGoogleAuthToken();
-        } catch (Exception e) {
-            Log.w(LOG_TAG, "Failed to update Google token", e);
-            authToken = null;
+        OptionalPendingResult<GoogleSignInResult> opr = Auth.GoogleSignInApi.silentSignIn(mGoogleApiClient);
+        if (opr.isDone()) {
+            // If the user's cached credentials are valid, the OptionalPendingResult will be "done"
+            // and the GoogleSignInResult will be available instantly.
+            Log.d(LOG_TAG, "Got cached sign-in");
+            GoogleSignInResult result = opr.get();
+            handleSignInResult(result);
         }
         return authToken;
     }
@@ -149,57 +142,8 @@ public class GoogleSignInProvider implements SignInProvider {
      * Initiate sign-in with Google.
      */
     private void signIn() {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                final ConnectionResult result = mGoogleApiClient.blockingConnect();
-                if (!result.isSuccess()) {
-                    ThreadUtils.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            onConnectionFailed(result);
-                        }
-                    });
-                    return;
-                }
-
-                try {
-                    authToken = getGoogleAuthToken();
-                    Log.d(LOG_TAG, "Google provider sign-in succeeded!");
-
-                    ThreadUtils.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            resultsHandler.onSuccess(GoogleSignInProvider.this);
-                        }
-                    });
-                } catch (final Exception e) {
-                    Log.e(LOG_TAG, "Error retrieving ID token.", e);
-                    ThreadUtils.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            resultsHandler.onError(GoogleSignInProvider.this, e);
-                        }
-                    });
-                }
-            }
-        }).start();
-    }
-
-    private String getGoogleAuthToken() throws GoogleAuthException, IOException {
-        Log.d(LOG_TAG, "Google provider getting token...");
-
-        final String accountName = Plus.AccountApi.getAccountName(mGoogleApiClient);
-        final Account googleAccount = new Account(accountName, GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE);
-        final String scopes = "audience:server:client_id:" + GOOGLE_CLIENT_ID;
-        final String token = GoogleAuthUtil.getToken(context, googleAccount, scopes);
-        if (token != null) {
-            Log.d(LOG_TAG, "Google Token is OK. Token hashcode = " + token.hashCode());
-        } else {
-            Log.d(LOG_TAG, "Google Token is NULL.");
-        }
-
-        return token;
+        Intent signInIntent = Auth.GoogleSignInApi.getSignInIntent(mGoogleApiClient);
+        signInActivity.startActivityForResult(signInIntent, RC_SIGN_IN);
     }
 
     /** {@inheritDoc} */
@@ -210,10 +154,7 @@ public class GoogleSignInProvider implements SignInProvider {
         clearUserInfo();
 
         authToken = null;
-        if (mGoogleApiClient.isConnected()) {
-            Plus.AccountApi.clearDefaultAccount(mGoogleApiClient);
-            mGoogleApiClient.disconnect();
-        }
+        Auth.GoogleSignInApi.signOut(mGoogleApiClient);
     }
 
     /** {@inheritDoc} */
@@ -225,17 +166,21 @@ public class GoogleSignInProvider implements SignInProvider {
     /** {@inheritDoc} */
     @Override
     public void handleActivityResult(final int requestCode, final int resultCode, final Intent data) {
-        if (requestCode == RC_SIGN_IN) {
-            mIntentInProgress = false;
-
-            // if the user canceled
-            if (resultCode == 0) {
-                resultsHandler.onCancel(GoogleSignInProvider.this);
-                clearUserInfo();
-                return;
-            }
-            signIn();
+        if (requestCode != RC_SIGN_IN) {
+            return;
         }
+        // if the user canceled
+        if (resultCode == 0) {
+            resultsHandler.onCancel(GoogleSignInProvider.this);
+            clearUserInfo();
+            return;
+        }
+        GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
+        GoogleSignInAccount account = result.getSignInAccount();
+        authToken = account.getIdToken();
+        userImageUrl = account.getPhotoUrl() == null ? null: account.getPhotoUrl().toString();
+        userName = account.getDisplayName();
+        mIntentInProgress = false;
     }
 
     /** {@inheritDoc} */
@@ -322,11 +267,37 @@ public class GoogleSignInProvider implements SignInProvider {
 
     /** {@inheritDoc} */
     public void reloadUserInfo() {
-        mGoogleApiClient.blockingConnect();
-        Person person = Plus.PeopleApi.getCurrentPerson(mGoogleApiClient);
-        if (person != null) {
-            userName = person.getDisplayName();
-            userImageUrl = person.getImage().getUrl();
+        OptionalPendingResult<GoogleSignInResult> opr = Auth.GoogleSignInApi.silentSignIn(mGoogleApiClient);
+        if (opr.isDone()) {
+            // If the user's cached credentials are valid, the OptionalPendingResult will be "done"
+            // and the GoogleSignInResult will be available instantly.
+            Log.d(LOG_TAG, "Got cached sign-in");
+            GoogleSignInResult result = opr.get();
+            handleSignInResult(result);
+        } else {
+            // If the user has not previously signed in on this device or the sign-in has expired,
+            // this asynchronous branch will attempt to sign in the user silently.  Cross-device
+            // single sign-on will occur in this branch.
+            opr.setResultCallback(new ResultCallback<GoogleSignInResult>() {
+                @Override
+                public void onResult(GoogleSignInResult googleSignInResult) {
+                    handleSignInResult(googleSignInResult);
+                }
+            });
+        }
+    }
+
+    private void handleSignInResult(GoogleSignInResult result) {
+        Log.d(LOG_TAG, "handleSignInResult:" + result.isSuccess());
+        if (result.isSuccess()) {
+            // Signed in successfully, show authenticated UI.
+            GoogleSignInAccount acct = result.getSignInAccount();
+            authToken = acct.getIdToken();
+            userName = acct.getDisplayName();
+            userImageUrl = acct.getPhotoUrl() == null ? null : acct.getPhotoUrl().toString();
+        } else {
+            // Signed out, show unauthenticated UI.
+
         }
     }
 }

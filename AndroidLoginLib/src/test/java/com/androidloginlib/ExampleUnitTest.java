@@ -1,4 +1,4 @@
-package com.aravinds86.androidloginlib;
+package com.androidloginlib;
 
 import org.junit.Test;
 

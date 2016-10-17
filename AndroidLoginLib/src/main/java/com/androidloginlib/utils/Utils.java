@@ -1,4 +1,4 @@
-package com.aravinds86.androidloginlib.signin;
+package com.androidloginlib.utils;
 //
 // Copyright 2016 Amazon.com, Inc. or its affiliates (Amazon). All Rights Reserved.
 //
@@ -12,6 +12,8 @@ import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Base64;
 import android.util.Log;
 
@@ -24,6 +26,14 @@ import java.security.NoSuchAlgorithmException;
 public class Utils {
 
     private static final String LOG_TAG_KEY_HASH = "KeyHash";
+
+    public static void runOnUiThread(final Runnable runnable) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            new Handler(Looper.getMainLooper()).post(runnable);
+        } else {
+            runnable.run();
+        }
+    }
 
     public static void logKeyHash(Context context) {
 
